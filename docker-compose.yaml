@@ -1,10 +1,5 @@
 version: '3'
 services:
-
-    # ----------------------------------------
-    # PLEX
-    # Robust Media Server
-    # ----------------------------------------
     plex:
         container_name: plex
         image: plexinc/pms-docker:${PMSTAG}
@@ -31,9 +26,10 @@ services:
         hostname: ${HOSTNAME}
         volumes:
             - './config/plex:/config'
-            - '/media/mediabot/transcode:/transcode'
-            - '/media/mediabot/library/movies:/data/movies'
-            - '/media/mediabot/library/tv:/data/tv'
+            - '/nfs/mediabot/transcode:/transcode'
+            - '/nfs/mediabot/library/movies:/data/movies'
+            - '/nfs/mediabot/library/tv:/data/tv'
+            - '/nfs/mediabot/library/other:/data/other'
             - '/etc/localtime:/etc/localtime:ro'
         labels:
             - 'traefik.enable=true'
@@ -41,11 +37,6 @@ services:
             - 'traefik.port=32400'
             - 'traefik.frontend.rule=Host:plex.${DOMAIN}'
             - 'traefik.frontend.entryPoints=https'
-
-    # ----------------------------------------
-    # DELUGEVPN
-    # Deluge Torrent Client + VPN
-    # ----------------------------------------
     arch-delugevpn:
         image: binhex/arch-delugevpn
         container_name: delugevpn
@@ -78,9 +69,8 @@ services:
             - LAN_NETWORK=${CIDR_ADDRESS}
             - NAME_SERVERS=37.235.1.174,8.8.8.8,37.235.1.177,8.8.4.4
             - DEBUG=false
-
         volumes:
-            - '/media/mediabot/downloads:/data'
+            - '/nfs/mediabot/downloads:/data'
             - './config/delugevpn:/config'
             - './config/ovpn/${VPNPROVIDER}:/config/openvpn'
             - '/etc/localtime:/etc/localtime:ro'
@@ -94,11 +84,6 @@ services:
             - 'traefik.frontend.headers.STSSeconds=315360000'
             - 'traefik.frontend.headers.STSIncludeSubdomains=true'
             - 'traefik.frontend.headers.STSPreload=true'
-
-    # ----------------------------------------
-    # SONARR
-    # TV Series Management
-    # ----------------------------------------
     sonarr:
         image: linuxserver/sonarr
         container_name: sonarr
@@ -113,8 +98,8 @@ services:
             - PGID=${PGID}
         volumes:
             - './config/sonarr:/config'
-            - '/media/mediabot/downloads/completed:/data/completed'
-            - '/media/mediabot/library/tv:/tv'
+            - '/nfs/mediabot/downloads/complete:/data/complete'
+            - '/nfs/mediabot/library/tv:/tv'
             - '/etc/localtime:/etc/localtime:ro'
         labels:
             - 'traefik.enable=true'
@@ -126,11 +111,6 @@ services:
             - 'traefik.frontend.headers.STSSeconds=315360000'
             - 'traefik.frontend.headers.STSIncludeSubdomains=true'
             - 'traefik.frontend.headers.STSPreload=true'
-
-    # ----------------------------------------
-    # RADARR
-    # Movie Management
-    # ----------------------------------------
     radarr:
         image: linuxserver/radarr
         container_name: radarr
@@ -145,8 +125,8 @@ services:
             - PGID=${PGID}
         volumes:
             - './config/radarr:/config'
-            - '/media/mediabot/downloads/completed:/data/completed'
-            - '/media/mediabot/library/movies:/movies'
+            - '/nfs/mediabot/downloads/complete:/data/complete'
+            - '/nfs/mediabot/library/movies:/movies'
             - '/etc/localtime:/etc/localtime:ro'
         labels:
             - 'traefik.enable=true'
@@ -158,11 +138,6 @@ services:
             - 'traefik.frontend.headers.STSSeconds=315360000'
             - 'traefik.frontend.headers.STSIncludeSubdomains=true'
             - 'traefik.frontend.headers.STSPreload=true'
-
-    # ----------------------------------------
-    # JACKETT
-    # RSS/TORZNAB Feed Creator
-    # ----------------------------------------
     jackett:
         image: linuxserver/jackett
         container_name: jackett
@@ -177,107 +152,13 @@ services:
             - PGID=${PGID}
         volumes:
             - './config/jackett:/config'
-            - '/media/mediabot/downloads/torrent-blackhole:/downloads'
+            - '/nfs/mediabot/downloads/torrent-blackhole:/downloads'
             - '/etc/localtime:/etc/localtime:ro'
         labels:
             - 'traefik.enable=true'
             - 'traefik.docker.network=${STACK_NAME}_web'
             - 'traefik.port=9117'
             - 'traefik.frontend.rule=Host:jackett.${DOMAIN}'
-            - 'traefik.frontend.entryPoints=https'
-            - 'traefik.frontend.headers.forceSTSHeader=true'
-            - 'traefik.frontend.headers.STSSeconds=315360000'
-            - 'traefik.frontend.headers.STSIncludeSubdomains=true'
-            - 'traefik.frontend.headers.STSPreload=true'
-
-    # ----------------------------------------
-    # TAUTULLI
-    # Monitoring Service for PLEX Usage
-    # ----------------------------------------
-    # plexpy:
-    #     image: linuxserver/tautulli
-    #     container_name: plexpy
-    #     restart: unless-stopped
-    #     networks:
-    #         - web
-    #     expose:
-    #         - 8181
-    #     environment:
-    #         - TZ=${TZ}
-    #         - PUID=${PUID}
-    #         - PGID=${PGID}
-    #     volumes:
-    #         - './plexpy:/config'
-    #         - './plex/Library/Application Support/Plex Media Server/Logs:/logs:ro'
-    #         - '/etc/localtime:/etc/localtime:ro'
-    #     depends_on:
-    #         - plex
-    #     labels:
-    #         - 'traefik.enable=true'
-    #         - 'traefik.docker.network=${STACK_NAME}_web'
-    #         - 'traefik.port=8181'
-    #         - 'traefik.frontend.rule=Host:plexpy.${DOMAIN}'
-    #         - 'traefik.frontend.entryPoints=https'
-    #         - 'traefik.frontend.headers.forceSTSHeader=true'
-    #         - 'traefik.frontend.headers.STSSeconds=315360000'
-    #         - 'traefik.frontend.headers.STSIncludeSubdomains=true'
-    #         - 'traefik.frontend.headers.STSPreload=true'
-
-    # ----------------------------------------
-    # OMBI
-    # Request Service for Plex Content
-    # ----------------------------------------
-    # ombi:
-    #     image: linuxserver/ombi
-    #     container_name: ombi
-    #     restart: unless-stopped
-    #     networks:
-    #         - web
-    #     expose:
-    #         - 3579
-    #     environment:
-    #         - TZ=${TZ}
-    #         - PUID=${PUID}
-    #         - PGID=${PGID}
-    #     volumes:
-    #         - './ombi:/config'
-    #         - '/etc/localtime:/etc/localtime:ro'
-    #     labels:
-    #         - 'traefik.enable=true'
-    #         - 'traefik.docker.network=${STACK_NAME}_web'
-    #         - 'traefik.port=3579'
-    #         - 'traefik.frontend.rule=Host:request.${DOMAIN}'
-    #         - 'traefik.frontend.entryPoints=https'
-    #         - 'traefik.frontend.headers.forceSTSHeader=true'
-    #         - 'traefik.frontend.headers.STSSeconds=315360000'
-    #         - 'traefik.frontend.headers.STSIncludeSubdomains=true'
-    #         - 'traefik.frontend.headers.STSPreload=true'
-
-    # ----------------------------------------
-    # PORTAINER
-    # Docker Container Management
-    # ----------------------------------------
-    portainer:
-        image: portainer/portainer:latest
-        container_name: portainer
-        restart: unless-stopped
-        networks:
-            - web
-        expose:
-            - 9000
-        environment:
-            - TZ=${TZ}
-            - PUID=${PUID}
-            - PGID=${PGID}
-        volumes:
-            - './config/portainer:/data'
-            - '/var/run/docker.sock:/var/run/docker.sock'
-            - '/etc/localtime:/etc/localtime:ro'
-        labels:
-            - 'traefik.enable=true'
-            - 'traefik.docker.network=${STACK_NAME}_web'
-            - 'traefik.port=9000'
-            - 'traefik.frontend.rule=Host:portainer.${DOMAIN}'
             - 'traefik.frontend.entryPoints=https'
             - 'traefik.frontend.headers.forceSTSHeader=true'
             - 'traefik.frontend.headers.STSSeconds=315360000'
@@ -313,46 +194,12 @@ services:
             - 'traefik.enable=false'
 
     # ----------------------------------------
-    # NETDATA
-    # System Resource Monitoring Service
+    # Heimdall
+    # Web dashboard
     # ----------------------------------------
-    # netdata:
-    #     image: titpetric/netdata
-    #     container_name: netdata
-    #     restart: unless-stopped
-    #     networks:
-    #         - web
-    #     expose:
-    #         - 19999
-    #     environment:
-    #         - TZ=${TZ}
-    #         - PUID=${PUID}
-    #         - PGID=${PGID}
-    #     cap_add:
-    #         - SYS_PTRACE
-    #     volumes:
-    #         - '/proc:/host/proc:ro'
-    #         - '/sys:/host/sys:ro'
-    #         - '/etc/localtime:/etc/localtime:ro'
-    #         - '/var/run/docker.sock:/var/run/docker.sock'
-    #     labels:
-    #         - 'traefik.enable=true'
-    #         - 'traefik.docker.network=${STACK_NAME}_web'
-    #         - 'traefik.port=19999'
-    #         - 'traefik.frontend.rule=Host:netdata.${DOMAIN}'
-    #         - 'traefik.frontend.entryPoints=https'
-    #         - 'traefik.frontend.headers.forceSTSHeader=true'
-    #         - 'traefik.frontend.headers.STSSeconds=315360000'
-    #         - 'traefik.frontend.headers.STSIncludeSubdomains=true'
-    #         - 'traefik.frontend.headers.STSPreload=true'
-
-    # ----------------------------------------
-    # MUXIMUX
-    # Web Frontend for HTPC Management
-    # ----------------------------------------
-    muximux:
-        image: linuxserver/muximux
-        container_name: muximux
+    heimdall:
+        image: linuxserver/heimdall
+        container_name: heimdall
         restart: unless-stopped
         networks:
             - web
@@ -363,7 +210,7 @@ services:
             - PUID=${PUID}
             - PGID=${PGID}
         volumes:
-            - './config/muximux:/config'
+            - './config/heimdall:/config'
             - '/etc/localtime:/etc/localtime:ro'
         labels:
             - 'traefik.enable=true'
@@ -375,180 +222,6 @@ services:
             - 'traefik.frontend.headers.STSSeconds=315360000'
             - 'traefik.frontend.headers.STSIncludeSubdomains=true'
             - 'traefik.frontend.headers.STSPreload=true'
-
-    # # ----------------------------------------
-    # # DUPLICATI
-    # # Backup Software
-    # # ----------------------------------------
-    # duplicati:
-    #     image: linuxserver/duplicati
-    #     container_name: duplicati
-    #     restart: unless-stopped
-    #     networks:
-    #         - web
-    #     expose:
-    #         - 8200
-    #     environment:
-    #         - TZ=${TZ}
-    #         - PUID=${PUID}
-    #         - PGID=${PGID}
-    #     volumes:
-    #         - './duplicati:/config'
-    #         - '/media/Media/Media:/media'
-    #         - '/etc/localtime:/etc/localtime:ro'
-    #     labels:
-    #         - 'traefik.enable=true'
-    #         - 'traefik.docker.network=${STACK_NAME}_web'
-    #         - 'traefik.port=8200'
-    #         - 'traefik.frontend.rule=Host:duplicati.${DOMAIN}'
-    #         - 'traefik.frontend.entryPoints=https'
-    #         - 'traefik.frontend.headers.forceSTSHeader=true'
-    #         - 'traefik.frontend.headers.STSSeconds=315360000'
-    #         - 'traefik.frontend.headers.STSIncludeSubdomains=true'
-    #         - 'traefik.frontend.headers.STSPreload=true'
-
-    # ----------------------------------------
-    # InfluxDB
-    # Time Series Database
-    # ----------------------------------------
-    # influxdb:
-    #     image: influxdb
-    #     container_name: influxdb
-    #     restart: unless-stopped
-    #     networks:
-    #         - internal
-    #     expose:
-    #         - 8086
-    #     environment:
-    #         - TZ=${TZ}
-    #         - PUID=${PUID}
-    #         - PGID=${PGID}
-    #         - INFLUXDB_DB=speedtest; CREATE DATABASE varken;
-    #     volumes:
-    #         - './influxdb:/var/lib/influxdb'
-    #     labels:
-    #         - 'traefik.enable=false'
-
-    # ----------------------------------------
-    # Chronograf
-    # Dashboard Tool for Speedtest
-    # ----------------------------------------
-    # chronograf:
-    #     image: chronograf
-    #     container_name: chronograf
-    #     restart: unless-stopped
-    #     networks:
-    #         - web
-    #         - internal
-    #     expose:
-    #         - 8888
-    #     environment:
-    #         - TZ=${TZ}
-    #         - PUID=${PUID}
-    #         - PGID=${PGID}
-    #     volumes:
-    #         - './chronograf:/var/lib/chronograf'
-    #     command:
-    #         - chronograf
-    #         - --influxdb-url=http://influxdb:8086
-    #     depends_on:
-    #         - influxdb
-    #     labels:
-    #         - 'traefik.enable=true'
-    #         - 'traefik.docker.network=${STACK_NAME}_web'
-    #         - 'traefik.port=8888'
-    #         - 'traefik.frontend.rule=Host:chronograf.${DOMAIN}'
-    #         - 'traefik.frontend.entryPoints=https'
-    #         - 'traefik.frontend.headers.forceSTSHeader=true'
-    #         - 'traefik.frontend.headers.STSSeconds=315360000'
-    #         - 'traefik.frontend.headers.STSIncludeSubdomains=true'
-    #         - 'traefik.frontend.headers.STSPreload=true'
-
-    # ----------------------------------------
-    # Speedtest
-    # Speedtest-CLI and Post to InfluxDB
-    # ----------------------------------------
-    # speedtest:
-    #     image: phikai/speedtest
-    #     container_name: speedtest
-    #     restart: unless-stopped
-    #     networks:
-    #         - internal
-    #     environment:
-    #         - TZ=${TZ}
-    #         - PUID=${PUID}
-    #         - PGID=${PGID}
-    #         - TEST_INTERVAL=${SPEEDTEST_INTERVAL}
-    #     depends_on:
-    #         - influxdb
-    #     labels:
-    #         - 'traefik.enable=false'
-
-    # ----------------------------------------
-    # Varken
-    # Standalone Plex Data Aggeregator
-    # ----------------------------------------
-    # varken:
-    #     image: boerderij/varken
-    #     container_name: varken
-    #     restart: unless-stopped
-    #     networks:
-    #         - internal
-    #     environment:
-    #         - TZ=${TZ}
-    #         - PUID=${PUID}
-    #         - PGID=${PGID}
-    #     volumes:
-    #         - './varken:/config'
-    #         - '/etc/localtime:/etc/localtime:ro'
-    #     depends_on:
-    #         - influxdb
-    #     labels:
-    #         - 'traefik.enable=false'
-
-    # ----------------------------------------
-    # Grafana
-    # Frontend for Varken
-    # ----------------------------------------
-    # grafana:
-    #     image: grafana/grafana
-    #     container_name: grafana
-    #     restart: unless-stopped
-    #     networks:
-    #         - web
-    #         - internal
-    #     expose:
-    #         - 3000
-    #     user: "0"
-    #     environment:
-    #         - TZ=${TZ}
-    #         - PUID=${PUID}
-    #         - PGID=${PGID}
-    #         - GF_SERVER_DOMAIN=grafana.${DOMAIN}
-    #         - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN}
-    #         - GF_PATHS_DATA=/config/data
-    #         - GF_PATHS_LOGS=/config/logs
-    #         - GF_PATHS_PLUGINS=/config/plugins
-    #         - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
-    #         - GF_SMTP_ENABLED=true
-    #         - GF_SMTP_HOST=${SMTP_SERVER}:${SMTP_PORT}
-    #         - GF_SMTP_USER=${SMTP_USER}
-    #         - GF_SMTP_PASSWORD=${SMTP_PASS}
-    #         - GF_SMTP_FROM_ADDRESS=${SMTP_FROM}
-    #     volumes:
-    #         - './grafana:/config'
-    #     depends_on:
-    #         - influxdb
-    #     labels:
-    #         - 'traefik.enable=true'
-    #         - 'traefik.docker.network=${STACK_NAME}_web'
-    #         - 'traefik.port=3000'
-    #         - 'traefik.frontend.rule=Host:grafana.${DOMAIN}'
-    #         - 'traefik.frontend.entryPoints=https'
-    #         - 'traefik.frontend.headers.forceSTSHeader=true'
-    #         - 'traefik.frontend.headers.STSSeconds=315360000'
-    #         - 'traefik.frontend.headers.STSIncludeSubdomains=true'
-    #         - 'traefik.frontend.headers.STSPreload=true'
 
     # ----------------------------------------
     # TRAEFIK
@@ -600,11 +273,6 @@ services:
             - 'traefik.frontend.headers.STSSeconds=315360000'
             - 'traefik.frontend.headers.STSIncludeSubdomains=true'
             - 'traefik.frontend.headers.STSPreload=true'
-
-########################
-# GLOBAL CONFIGURATION #
-########################
-
 networks:
     internal:
     web:
