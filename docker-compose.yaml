@@ -1,7 +1,6 @@
 version: '3'
 services:
     plex:
-        container_name: plex
         image: plexinc/pms-docker:${PMSTAG}
         restart: unless-stopped
         networks:
@@ -37,48 +36,48 @@ services:
             - 'traefik.port=32400'
             - 'traefik.frontend.rule=Host:plex.${DOMAIN}'
             - 'traefik.frontend.entryPoints=https'
-    arch-delugevpn:
-        image: binhex/arch-delugevpn
-        container_name: delugevpn
+    transmission:
+        image: haugene/transmission-openvpn
         restart: unless-stopped
+        cap_add:
+            - NET_ADMIN
         networks:
             - web
         ports:
-            - '${IP_ADDRESS}:8118:8118'
-            - '${IP_ADDRESS}:58846:58846'
-            - '${IP_ADDRESS}:58946:58946'
+            - '${IP_ADDRESS}:9091:9091'
+            - '${IP_ADDRESS}:51413:51413'
+            - '${IP_ADDRESS}:51413:51413/udp'
         expose:
-            - 8112
-        cap_add:
-            - NET_ADMIN
+            - 9091
         environment:
             - TZ=${TZ}
             - PUID=${PUID}
             - PGID=${PGID}
-            - VPN_ENABLED=yes
-            - VPN_USER=${VPNUNAME}
-            - VPN_PASS=${VPNPASS}
-            - VPN_REMOTE=${VPN_REMOTE}
-            - VPN_PORT=1198
-            - VPN_PROTOCOL=udp
-            - VPN_DEVICE_TYPE=tun
-            - VPN_PROV=${VPNPROVIDER}
-            - STRONG_CERTS=no
-            - ENABLE_PRIVOXY=yes
-            - STRICT_PORT_FORWARD=yes
-            - LAN_NETWORK=${CIDR_ADDRESS}
-            - NAME_SERVERS=37.235.1.174,8.8.8.8,37.235.1.177,8.8.4.4
-            - DEBUG=false
+            - OPENVPN_PROVIDER=PIA
+            - OPENVPN_USERNAME=${VPNUNAME}
+            - OPENVPN_PASSWORD=${VPNPASS}
+            - OPENVPN_CONFIG=sweden
+            - OPENVPN_OPTS=--inactive 3600 --ping 10 --ping-exit 60
+            - LOCAL_NETWORK=${CIDR_ADDRESS}
+            - TRANSMISSION_RATIO_LIMIT_ENABLED=true
+            - TRANSMISSION_RATIO_LIMIT=1
+            - TRANSMISSION_RPC_WHITELIST_ENABLED=false
+            - TRANSMISSION_WEB_UI=combustion
+            - TRANSMISSION_WATCH_DIR_FORCE_GENERIC=true # attempt to fix watch dir…not working
+            - OVERRIDE_DNS_1=8.8.8.8
+            - OVERRIDE_DNS_2=8.8.4.4
         volumes:
-            - '/nfs/mediabot/downloads:/data'
-            - './config/delugevpn:/config'
-            - './config/ovpn/${VPNPROVIDER}:/config/openvpn'
+            - '/nfs/mediabot/downloads/completed:/data/completed'
+            - '/nfs/mediabot/downloads/incomplete:/data/incomplete'
+            - '/nfs/mediabot/downloads/watch:/data/watch'
+            - './config/transmission/transmission-home:/data/transmission-home'
             - '/etc/localtime:/etc/localtime:ro'
         labels:
             - 'traefik.enable=true'
             - 'traefik.docker.network=${STACK_NAME}_web'
-            - 'traefik.port=8112'
-            - 'traefik.frontend.rule=Host:deluge.${DOMAIN}'
+            - 'traefik.port=9091'
+            - 'traefik.frontend.auth.basic=${TRAEFIK_AUTH}'
+            - 'traefik.frontend.rule=Host:transmission.${DOMAIN}'
             - 'traefik.frontend.entryPoints=https'
             - 'traefik.frontend.headers.forceSTSHeader=true'
             - 'traefik.frontend.headers.STSSeconds=315360000'
@@ -86,7 +85,6 @@ services:
             - 'traefik.frontend.headers.STSPreload=true'
     sonarr:
         image: linuxserver/sonarr
-        container_name: sonarr
         restart: unless-stopped
         networks:
             - web
@@ -98,7 +96,7 @@ services:
             - PGID=${PGID}
         volumes:
             - './config/sonarr:/config'
-            - '/nfs/mediabot/downloads/complete:/data/complete'
+            - '/nfs/mediabot/downloads/completed:/data/completed'
             - '/nfs/mediabot/library/tv:/tv'
             - '/etc/localtime:/etc/localtime:ro'
         labels:
@@ -113,7 +111,6 @@ services:
             - 'traefik.frontend.headers.STSPreload=true'
     radarr:
         image: linuxserver/radarr
-        container_name: radarr
         restart: unless-stopped
         networks:
             - web
@@ -125,7 +122,7 @@ services:
             - PGID=${PGID}
         volumes:
             - './config/radarr:/config'
-            - '/nfs/mediabot/downloads/complete:/data/complete'
+            - '/nfs/mediabot/downloads/completed:/data/completed'
             - '/nfs/mediabot/library/movies:/movies'
             - '/etc/localtime:/etc/localtime:ro'
         labels:
@@ -140,7 +137,6 @@ services:
             - 'traefik.frontend.headers.STSPreload=true'
     jackett:
         image: linuxserver/jackett
-        container_name: jackett
         restart: unless-stopped
         networks:
             - web
@@ -152,7 +148,7 @@ services:
             - PGID=${PGID}
         volumes:
             - './config/jackett:/config'
-            - '/nfs/mediabot/downloads/torrent-blackhole:/downloads'
+            - '/nfs/mediabot/downloads/watch:/downloads'
             - '/etc/localtime:/etc/localtime:ro'
         labels:
             - 'traefik.enable=true'
@@ -171,7 +167,6 @@ services:
     # ----------------------------------------
     watchtower:
         image: v2tec/watchtower
-        container_name: watchtower
         restart: unless-stopped
         networks:
             - internal
@@ -199,7 +194,6 @@ services:
     # ----------------------------------------
     heimdall:
         image: linuxserver/heimdall
-        container_name: heimdall
         restart: unless-stopped
         networks:
             - web
@@ -229,7 +223,6 @@ services:
     # ----------------------------------------
     traefik:
         image: traefik:v1.7.16
-        container_name: traefik
         restart: unless-stopped
         networks:
             - web
@@ -250,11 +243,11 @@ services:
             - --loglevel=debug
             - "--entryPoints=Name:https Address::443 TLS"
             - "--entryPoints=Name:http Address::80 Redirect.EntryPoint:https"
-            - --acme.entrypoint=https 
-            - --acme=true 
+            - --acme.entrypoint=https
+            - --acme=true
             - --acme.domains=${DOMAIN}
             - --acme.email=${EMAIL}
-            - --acme.ondemand=true 
+            - --acme.ondemand=true
             - --acme.onhostrule
             - --acme.httpchallenge
             - --acme.httpchallenge.entrypoint=http
@@ -276,4 +269,3 @@ services:
 networks:
     internal:
     web:
-
