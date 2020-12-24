@@ -44,7 +44,6 @@ services:
         networks:
             - web
         ports:
-            - '${IP_ADDRESS}:9091:9091'
             - '${IP_ADDRESS}:51413:51413'
             - '${IP_ADDRESS}:51413:51413/udp'
         expose:
