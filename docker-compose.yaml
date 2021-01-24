@@ -36,6 +36,52 @@ services:
             - 'traefik.port=32400'
             - 'traefik.frontend.rule=Host:plex.${DOMAIN}'
             - 'traefik.frontend.entryPoints=https'
+    delugevpn:
+        image: binhex/arch-delugevpn
+        restart: unless-stopped
+        networks:
+            - web
+        ports:
+            - '${IP_ADDRESS}:8118:8118'
+            - '${IP_ADDRESS}:58846:58846'
+            - '${IP_ADDRESS}:58946:58946'
+        expose:
+            - 8112
+        cap_add:
+            - NET_ADMIN
+        environment:
+            - TZ=${TZ}
+            - PUID=${PUID}
+            - PGID=${PGID}
+            - VPN_ENABLED=yes
+            - VPN_USER=${VPNUNAME}
+            - VPN_PASS=${VPNPASS}
+            - VPN_REMOTE=${VPN_REMOTE}
+            - VPN_PORT=1198
+            - VPN_PROTOCOL=udp
+            - VPN_DEVICE_TYPE=tun
+            - VPN_PROV=${VPNPROVIDER}
+            - STRONG_CERTS=no
+            - ENABLE_PRIVOXY=yes
+            - STRICT_PORT_FORWARD=yes
+            - LAN_NETWORK=${CIDR_ADDRESS}
+            - NAME_SERVERS=37.235.1.174,8.8.8.8,37.235.1.177,8.8.4.4
+            - DEBUG=false
+        volumes:
+            - '/nfs/mediabot/downloads:/data'
+            - './config/delugevpn:/config'
+            - './config/ovpn/${VPNPROVIDER}:/config/openvpn'
+            - '/etc/localtime:/etc/localtime:ro'
+        labels:
+            - 'traefik.enable=true'
+            - 'traefik.docker.network=${STACK_NAME}_web'
+            - 'traefik.port=8112'
+            - 'traefik.frontend.rule=Host:deluge.${DOMAIN}'
+            - 'traefik.frontend.entryPoints=https'
+            - 'traefik.frontend.headers.forceSTSHeader=true'
+            - 'traefik.frontend.headers.STSSeconds=315360000'
+            - 'traefik.frontend.headers.STSIncludeSubdomains=true'
+            - 'traefik.frontend.headers.STSPreload=true'
     transmission:
         image: haugene/transmission-openvpn
         restart: unless-stopped
