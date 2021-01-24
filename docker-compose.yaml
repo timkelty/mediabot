@@ -70,7 +70,7 @@ services:
         volumes:
             - '/nfs/mediabot/downloads:/data'
             - './config/delugevpn:/config'
-            - './ovpn/${VPNPROVIDER}:/config/openvpn'
+            - './openvpn/${VPNPROVIDER}:/config/openvpn'
             - '/etc/localtime:/etc/localtime:ro'
         labels:
             - 'traefik.enable=true'
