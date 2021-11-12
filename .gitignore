@@ -1,3 +1,4 @@
 .env
 varken/varken.ini
 config/*
+openvpn/pia/credentials.conf
